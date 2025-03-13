@@ -1,0 +1,359 @@
+---
+title: "Project2_coffee"
+author: "Group15"
+number-sections: true
+format: 
+  html:
+    embed-resources: true
+    code-tools: true
+  pdf: default
+editor_options: 
+  chunk_output_type: console
+execute:
+  eval: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| echo: true
+#| warning: false
+#| message: false
+ 
+library(tidyverse)
+library(moderndive)
+library(gapminder)
+library(sjPlot)
+library(stats)
+library(jtools)
+library(knitr)
+library(dplyr)
+library(car)
+library(gt)
+library(tidyr)
+library(tibble)
+```
+
+# Introduction
+
+# Exploratory Data Analysis
+
+## Data Analysis
+
+```{r}
+#| echo: true
+data <- read.csv("D:/study/analysis/project2/dataset15.csv")
+```
+
+```{r}
+#remove missing value
+dataset <- data %>%
+  drop_na()
+#check and change the type of dataset
+str(dataset)
+dataset$Qualityclass <- ifelse(dataset$Qualityclass == "Good", 1, 0)
+dataset$Qualityclass <- as.factor(dataset$Qualityclass)
+str(dataset)
+```
+
+```{r}
+#Analyze the types and sizes of data
+dataset %>%
+  group_by(country_of_origin) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+```
+
+```{r}
+#| echo: true
+#| label: tbl-Summary
+#| tbl-cap: Summary statistics table between variables
+dataset |> 
+  reframe(
+    Variable = c("aroma", "flavor", "acidity", "category_two_defects", "altitude_mean_meters", "harvested"),
+    Mean = c(mean(aroma, na.rm = TRUE), mean(flavor, na.rm = TRUE), 
+             mean(acidity, na.rm = TRUE), mean(category_two_defects, na.rm = TRUE), mean(altitude_mean_meters, na.rm = TRUE), mean(harvested, na.rm = TRUE)),
+    Median = c(median(aroma, na.rm = TRUE), median(flavor, na.rm = TRUE), 
+               median(acidity, na.rm = TRUE), median(category_two_defects, na.rm = TRUE), median(altitude_mean_meters, na.rm = TRUE), median(harvested, na.rm = TRUE)),
+    St.Dev = c(sd(aroma, na.rm = TRUE), sd(flavor, na.rm = TRUE), 
+               sd(acidity, na.rm = TRUE), sd(category_two_defects, na.rm = TRUE), sd(altitude_mean_meters, na.rm = TRUE), sd(harvested, na.rm = TRUE)),
+    Min = c(min(aroma, na.rm = TRUE), min(flavor, na.rm = TRUE), 
+            min(acidity, na.rm = TRUE), min(category_two_defects, na.rm = TRUE), min(altitude_mean_meters, na.rm = TRUE), min(harvested, na.rm = TRUE)),
+    Max = c(max(aroma, na.rm = TRUE), max(flavor, na.rm = TRUE), 
+            max(acidity, na.rm = TRUE), max(category_two_defects, na.rm = TRUE), max(altitude_mean_meters, na.rm = TRUE), max(harvested, na.rm = TRUE))
+  ) |> 
+  gt() |> 
+  fmt_number(decimals = 2)
+```
+
+```{r}
+#remove the outliers
+vars <- c("aroma", "flavor", "acidity", "category_two_defects", "altitude_mean_meters", "harvested")
+quantiles99 <- dataset %>%
+  summarise(across(all_of(vars), ~ quantile(., 0.99, na.rm = TRUE)))
+print(quantiles99)
+coffee <- dataset %>%
+  filter(
+    aroma <= quantiles99$aroma,
+    flavor <= quantiles99$flavor,
+    acidity <= quantiles99$acidity,
+    category_two_defects <= quantiles99$category_two_defects,
+    altitude_mean_meters <= quantiles99$altitude_mean_meters,
+    harvested <= quantiles99$harvested
+  )
+print(nrow(coffee))
+#Standardize altitude_mean_meters
+coffee$altitude_mean_meters <- scale(coffee$altitude_mean_meters)
+```
+
+```{r}
+#| echo: true
+#| label: tbl-Correlation
+#| tbl-cap: Correlation coefficients between numerical variables
+coffee %>%
+  dplyr::select(aroma, flavor, acidity, category_two_defects, altitude_mean_meters, harvested) %>%
+  cor() %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "Variable") %>%
+  gt()
+```
+
+## Data Visualization
+```{r}
+#| echo: true
+#| label: fig-boxplot1
+#| fig-cap: Aroma and qualityclass
+ggplot(data = coffee, aes(x = Qualityclass, y = aroma, fill = Qualityclass)) +
+  geom_boxplot() +
+  labs(x = "Qualityclass", y = "aroma")+ 
+  theme(legend.position = "none")
+```
+
+```{r}
+#| echo: true
+#| label: fig-boxplot2
+#| fig-cap: flavor and qualityclass
+ggplot(data = coffee, aes(x = Qualityclass, y = flavor, fill = Qualityclass)) +
+  geom_boxplot() +
+  labs(x = "Qualityclass", y = "flavor")+ 
+  theme(legend.position = "none")
+```
+
+```{r}
+#| echo: true
+#| label: fig-boxplot3
+#| fig-cap: acidity and qualityclass
+ggplot(data = coffee, aes(x = Qualityclass, y = acidity, fill = Qualityclass)) +
+  geom_boxplot() +
+  labs(x = "Qualityclass", y = "acidit")+ 
+  theme(legend.position = "none")
+```
+
+```{r}
+#| echo: true
+#| label: fig-boxplot4
+#| fig-cap: category_two_defects and qualityclass
+ggplot(data = coffee, aes(x = Qualityclass, y = category_two_defects, fill = Qualityclass)) +
+  geom_boxplot() +
+  labs(x = "Qualityclass", y = "category_two_defects")+ 
+  theme(legend.position = "none")
+```
+
+```{r}
+#| echo: true
+#| label: fig-boxplot5
+#| fig-cap: altitude_mean_meters and qualityclass
+ggplot(data = coffee, aes(x = Qualityclass, y = altitude_mean_meters, fill = Qualityclass)) +
+  geom_boxplot() +
+  labs(x = "Qualityclass", y = "altitude_mean_meters")+ 
+  theme(legend.position = "none")
+```
+
+```{r}
+#| echo: true
+#| label: fig-boxplot6
+#| fig-cap: harvested and qualityclass
+ggplot(data = coffee, aes(x = Qualityclass, y = harvested, fill = Qualityclass)) +
+  geom_boxplot() +
+  labs(x = "Qualityclass", y = "harvested")+ 
+  theme(legend.position = "none")
+```
+
+# Formal Analysis
+## model selection
+```{r}
+#| echo: true
+# check default baseline
+levels(coffee$Qualityclass)
+```
+
+```{r}
+#| echo: true
+# Fit the model
+model <- glm(Qualityclass ~ aroma + flavor + acidity + category_two_defects + altitude_mean_meters + harvested, data = coffee,
+             family = binomial(link = "logit"))
+model %>%
+  summary()
+summ(model)
+```
+
+```{r}
+#| echo: true
+# Fit the model2
+model2 <- glm(Qualityclass ~ aroma + flavor + acidity + altitude_mean_meters + harvested, 
+                     data = coffee, family = binomial(link = "logit"))
+model2 %>%
+  summary()
+summ(model2)
+```
+
+```{r}
+#| echo: true
+# Fit the model3
+model3 <- glm(Qualityclass ~ aroma + flavor + acidity +  harvested, 
+              data = coffee, family = binomial(link = "logit"))
+model3 %>%
+  summary()
+summ(model3)
+```
+
+```{r}
+#| echo: true
+# Fit the GLM about Country
+coffee$country_of_origin <- as.factor(coffee$country_of_origin)
+glm_model <- glm(Qualityclass ~ .,
+                 data = coffee,
+                 family = binomial(link = "logit"))
+summ(glm_model)
+```
+
+## log_odds
+```{r}
+#| echo: true
+#estimated coefficients
+mod1coefs <- round(coef(model2),2)
+```
+
+```{r}
+#| echo: true
+#| label: tbl-logodds95%CI
+#| tbl-cap: 95% Confidence Interval for the Log-odds
+confint(model2) %>%
+  kable()
+```
+
+```{r}
+#| echo: true
+#| label: fig-95%logCIplot
+#| fig-cap: 95% Confidence Interval Plot for Log-Odds
+plot_model(model2, show.values = TRUE, transform = NULL,
+           title = "Log-Odds (Coffee Quanlityclass score)", show.p = FALSE)
+```
+
+```{r}
+# Add log-odds to the dataset
+coffee <- coffee %>%
+  mutate(logodds.poor = predict(model2))
+```
+
+## odd ratio
+```{r}
+#| echo: true
+#| label: tbl-odds_scale
+#| tbl-cap: Summary Table on the Odds Scale
+model2 %>%
+  coef() %>%
+  exp() %>%
+  as.data.frame() %>% 
+  rownames_to_column(var = "Variable") %>%
+  gt()
+```
+
+```{r}
+#| echo: true
+#| label: fig-95%CIplot
+#| fig-cap: 95% Confidence Interval Plot for Odds
+plot_model(model2, show.values = TRUE, 
+           title = "Odds (poor instructor)", show.p = FALSE)
+```
+
+```{r}
+# Add odds to the dataset
+coffee <- coffee %>%
+  mutate(odds.poor = exp(logodds.poor))
+```
+
+## Probabilities
+```{r}
+# Add probability to the dataset.
+coffee <- coffee %>%
+  mutate(probs.poor = fitted(model2))
+```
+
+```{r}
+#| echo: true
+#| label: fig-probability1
+#| fig-cap: Probability on Aroma and Qualityclass.
+ggplot(data = coffee, aes(x = aroma, y = probs.poor)) +
+  geom_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              se = FALSE) +
+  labs(x = "aroma", y = "Probability of quanilityclass being poor")
+```
+
+```{r}
+#| echo: true
+#| label: fig-probability2
+#| fig-cap: Probability on flavor and Qualityclass.
+ggplot(data = coffee, aes(x = flavor, y = probs.poor)) +
+  geom_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              se = FALSE) +
+  labs(x = "flavor", y = "Probability of quanilityclass being poor")
+```
+
+```{r}
+#| echo: true
+#| label: fig-probability3
+#| fig-cap: Probability on acidity and Qualityclass.
+ggplot(data = coffee, aes(x = acidity, y = probs.poor)) +
+  geom_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              se = FALSE) +
+  labs(x = "acidity", y = "Probability of quanilityclass being poor")
+```
+
+```{r}
+#| echo: true
+#| label: fig-probability3
+#| fig-cap: Probability on acidity and Qualityclass.
+ggplot(data = coffee, aes(x = altitude_mean_meters, y = probs.poor)) +
+  geom_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              se = FALSE) +
+  labs(x = "altitude_mean_meters", y = "Probability of quanilityclass being poor")
+```
+
+```{r}
+#| echo: true
+#| label: fig-probability3
+#| fig-cap: Probability on acidity and Qualityclass.
+ggplot(data = coffee, aes(x = altitude_mean_meters, y = probs.poor)) +
+  geom_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              se = FALSE) +
+  labs(x = "altitude_mean_meters", y = "Probability of quanilityclass being poor")
+```
+
+```{r}
+#| echo: true
+#| label: fig-probability3
+#| fig-cap: Probability on acidity and Qualityclass.
+ggplot(data = coffee, aes(x = harvested, y = probs.poor)) +
+  geom_smooth(method="glm", 
+              method.args = list(family="binomial"), 
+              se = FALSE) +
+  labs(x = "harvested", y = "Probability of quanilityclass being poor")
+```
+
+# Conclusion
