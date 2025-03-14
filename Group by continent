@@ -1,0 +1,66 @@
+#clean data
+# load the packages
+library(tidyverse)
+library(countrycode)
+
+#  map countries to continents
+dataset <- dataset %>%
+  mutate(Continent = countrycode(sourcevar = country_of_origin,
+                                 origin = "country.name",
+                                 destination = "continent"))
+
+# replace NA values in the Continent column with "Other"
+dataset$Continent[is.na(dataset$Continent)] <- "Other"
+
+# remove rows where Continent is "Other"
+dataset <- dataset %>%
+  filter(Continent != "Other")
+
+# move "Continent" column
+dataset <- dataset %>%
+  select(Continent, everything())
+
+# check the missing data
+sapply(dataset, function(x) {sum(is.na(x))})
+
+# check the outliers. Using aroma, flavor and acidity
+fun.outlier <- function(x, time.iqr = 1.5) {
+  if (length(table(x)) < 3) {
+    return(x)
+  } else {
+    outlier.low <- quantile(x, probs = c(0.25), na.rm = TRUE) - IQR(x, na.rm = TRUE) * time.iqr
+    outlier.high <- quantile(x, probs = c(0.75), na.rm = TRUE) + IQR(x, na.rm = TRUE) * time.iqr
+    x[which(x > outlier.high)] <- outlier.high
+    x[which(x < outlier.low)] <- outlier.low
+    return(x)
+  }
+}
+
+# Apply the outlier function to the desired columns (aroma, flavor, acidity)
+dataset[, c("aroma", "flavor", "acidity")] <- as.data.frame(lapply(dataset[, c("aroma", "flavor", "acidity")], fun.outlier))
+
+# Format the data
+dataset$aroma <- sprintf("%.6f", as.numeric(dataset$aroma))
+dataset$flavor <- sprintf("%.6f", as.numeric(dataset$flavor))
+dataset$acidity <- sprintf("%.6f", as.numeric(dataset$acidity)) #Format acidity also.
+
+# Save the cleaned and standardized dataset
+write.csv(dataset, file = "clean_data.csv", row.names = FALSE)
+
+# Analyze the data grouped by Continent
+
+# calculate the average aroma, flavor and acidity grouped by Continent
+continent_summary <- dataset %>%
+  group_by(Continent) %>%
+  summarise(
+    avg_aroma = mean(as.numeric(aroma), na.rm = TRUE),
+    avg_flavor = mean(as.numeric(flavor), na.rm = TRUE),
+    avg_acidity = mean(as.numeric(acidity), na.rm = TRUE),
+    n = n() # number of observations in each continent
+  )
+
+# Print the summary
+print(continent_summary)
+
+# save the summary to a csv file.
+write.csv(continent_summary, file = "continent_summary.csv", row.names = FALSE)
