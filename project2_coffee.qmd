@@ -356,4 +356,4 @@ ggplot(data = coffee, aes(x = harvested, y = probs.poor)) +
   labs(x = "harvested", y = "Probability of quanilityclass being poor")
 ```
 
-# Conclusion
+# 
